@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  orders        Order[]
+  cartItems     CartItem[]
+  reviews       Review[]
+  account       Account?
+  
+  @@map("users")
+}
+
+model Product {
+  id          String    @id @default(cuid())
+  name        String
+  description String
+  price       Float     // base price in USD
+  currency    String    @default("USD")
+  imageUrl    String?
+  stock       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  variants    Variant[]
+  orderItems  OrderItem[]
+  reviews     Review[]
+  
+  @@map("products")
+}
+
+model Variant {
+  id        String   @id @default(cuid())
+  productId String
+  size      String?
+  color     String?
+  price     Float?
+  stock     Int      @default(0)
+  
+  product   Product  @relation(fields: [productId], references: [id])
+  
+  @@map("variants")
+}
+
+model Order {
+  id                String    @id @default(cuid())
+  userId            String?
+  totalAmount       Float
+  currency          String    @default("USD")
+  status            String    @default("pending") // pending, paid, shipped, delivered, cancelled
+  shippingAddress   Json?     // {street, city, state, zip, country}
+  billingAddress    Json?     // same as above
+  paymentMethod     String?   // stripe, paypal, alipay
+  paymentId         String?   // from Stripe/PayPal
+  shippingRateId    String?   // from Shippo
+  customsDeclaration Json?    // {items, value, etc.} for tariff
+  tariffEstimate    Float?    // estimated tariff amount
+  trackingNumber    String?   // from Shippo
+  carrier           String?   // USPS, FedEx, etc.
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  user              User?     @relation(fields: [userId], references: [id])
+  items             OrderItem[]
+  payments          Payment[]
+  
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  
+  order     Order    @relation(fields: [orderId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  
+  @@map("order_items")
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  quantity  Int      @default(1)
+  
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@map("cart_items")
+}
+
+model Payment {
+  id       String   @id @default(cuid())
+  orderId  String
+  amount   Float
+  currency String
+  status   String
+  provider String   // stripe, paypal, alipay
+  
+  order    Order    @relation(fields: [orderId], references: [id])
+  
+  @@map("payments")
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@map("reviews")
+}
+
+model Account {
+  id       String @id @default(cuid())
+  userId   String @unique
+  provider String // clerk, nextauth
+  
+  user     User   @relation(fields: [userId], references: [id])
+  
+  @@map("accounts")
+}
